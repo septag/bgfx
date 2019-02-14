@@ -61,8 +61,8 @@ CS_FLAGS=--platform android
 SHADER_PATH=shaders/essl
 else
 ifeq ($(TARGET), 4)
-VS_FLAGS=--platform linux -p 120
-FS_FLAGS=--platform linux -p 120
+VS_FLAGS=--platform linux -p 430
+FS_FLAGS=--platform linux -p 430
 CS_FLAGS=--platform linux -p 430
 SHADER_PATH=shaders/glsl
 else

@@ -1582,11 +1582,13 @@ ast_function_expression::hir(exec_list *instructions,
 
       /* Constructors for samplers are illegal.
        */
+      //#if 0 // @dario
       if (constructor_type->is_sampler()) {
 	 _mesa_glsl_error(& loc, state, "cannot construct sampler type `%s'",
 			  constructor_type->name);
 	 return ir_rvalue::error_value(ctx);
       }
+      // #endif
 
       if (constructor_type->is_array()) {
          if (!state->check_version(120, 300, &loc,

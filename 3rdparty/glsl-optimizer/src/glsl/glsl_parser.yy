@@ -1348,10 +1348,11 @@ layout_qualifier_id:
          }
       }
 
+      // @dario
       if (!$$.flags.i) {
-         _mesa_glsl_error(& @1, state, "unrecognized layout identifier "
-                          "`%s'", $1);
-         YYERROR;
+        _mesa_glsl_error(& @1, state, "unrecognized layout identifier "
+                         "`%s'", $1);
+        YYERROR;
       }
    }
    | any_identifier '=' integer_constant
@@ -1488,10 +1489,11 @@ layout_qualifier_id:
       /* If the identifier didn't match any known layout identifiers,
        * emit an error.
        */
+      // @dario
       if (!$$.flags.i) {
-         _mesa_glsl_error(& @1, state, "unrecognized layout identifier "
-                          "`%s'", $1);
-         YYERROR;
+        _mesa_glsl_error(& @1, state, "unrecognized layout identifier "
+                         "`%s'", $1);
+        YYERROR;
       }
    }
    | interface_block_layout_qualifier

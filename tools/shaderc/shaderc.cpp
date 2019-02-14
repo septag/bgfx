@@ -17,6 +17,7 @@ extern "C"
 #define BGFX_CHUNK_MAGIC_CSH BX_MAKEFOURCC('C', 'S', 'H', BGFX_SHADER_BIN_VERSION)
 #define BGFX_CHUNK_MAGIC_FSH BX_MAKEFOURCC('F', 'S', 'H', BGFX_SHADER_BIN_VERSION)
 #define BGFX_CHUNK_MAGIC_VSH BX_MAKEFOURCC('V', 'S', 'H', BGFX_SHADER_BIN_VERSION)
+#define BGFX_CHUNK_MAGIC_GSH BX_MAKEFOURCC('G', 'S', 'H', BGFX_SHADER_BIN_VERSION)
 
 #define BGFX_SHADERC_VERSION_MAJOR 1
 #define BGFX_SHADERC_VERSION_MINOR 16
@@ -866,7 +867,8 @@ namespace bgfx
 		fprintf(stderr
 			, "shaderc, bgfx shader compiler tool, version %d.%d.%d.\n"
 			  "Copyright 2011-2019 Branimir Karadzic. All rights reserved.\n"
-			  "License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause\n\n"
+			  "License: https://github.com/bkaradzic/bgfx#license-bsd-2-clause\n"
+			  "NOTE: this is septag's fork with geometry-shaders support\n\n"
 			, BGFX_SHADERC_VERSION_MAJOR
 			, BGFX_SHADERC_VERSION_MINOR
 			, BGFX_API_VERSION
@@ -895,7 +897,7 @@ namespace bgfx
 			  "      --preprocess              Preprocess only.\n"
 			  "      --define <defines>        Add defines to preprocessor (semicolon separated).\n"
 			  "      --raw                     Do not process shader. No preprocessor, and no glsl-optimizer (GLSL only).\n"
-			  "      --type <type>             Shader type (vertex, fragment)\n"
+			  "      --type <type>             Shader type (vertex, fragment, geometry)\n"
 			  "      --varyingdef <file path>  Path to varying.def.sc file.\n"
 			  "      --verbose                 Verbose.\n"
 
@@ -1090,6 +1092,11 @@ namespace bgfx
 
 		case 'v':
 			preprocessor.setDefine("BGFX_SHADER_TYPE_VERTEX=1");
+			break;
+
+		case 'g':
+			// @septag
+			preprocessor.setDefine("BGFX_SHADER_TYPE_GEOMETRY=1");
 			break;
 
 		default:
@@ -1304,6 +1311,13 @@ namespace bgfx
 				bx::write(_writer, BGFX_CHUNK_MAGIC_VSH);
 				bx::write(_writer, uint32_t(0) );
 				bx::write(_writer, outputHash);
+			} 
+			// @septag
+			else if ('g' == _options.shaderType) 
+			{
+				bx::write(_writer, BGFX_CHUNK_MAGIC_GSH);
+				bx::write(_writer, uint32_t(0));
+				bx::write(_writer, uint32_t(0));
 			}
 			else
 			{
@@ -1930,6 +1944,13 @@ namespace bgfx
 							bx::write(_writer, BGFX_CHUNK_MAGIC_VSH);
 							bx::write(_writer, uint32_t(0) );
 							bx::write(_writer, outputHash);
+						}
+						// @septag
+						else if ('g' == _options.shaderType) 
+						{
+							bx::write(_writer, BGFX_CHUNK_MAGIC_GSH);
+							bx::write(_writer, uint32_t(0));
+							bx::write(_writer, uint32_t(0));
 						}
 						else
 						{

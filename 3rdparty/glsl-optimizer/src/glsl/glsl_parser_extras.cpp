@@ -681,8 +681,8 @@ _mesa_glsl_process_extension(const char *name, YYLTYPE *name_locp,
                              name, _mesa_shader_stage_to_string(state->stage));
             return false;
          } else {
-            _mesa_glsl_warning(name_locp, state, fmt,
-                               name, _mesa_shader_stage_to_string(state->stage));
+            // _mesa_glsl_warning(name_locp, state, fmt,
+            //                   name, _mesa_shader_stage_to_string(state->stage));
          }
       }
    }

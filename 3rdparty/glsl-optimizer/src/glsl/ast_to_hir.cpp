@@ -3019,10 +3019,12 @@ process_initializer(ir_variable *var, ast_declaration *decl,
     *     OpenGL API; they cannot be declared with an initializer in a
     *     shader."
     */
+   // #if 0 // @dario
    if (var->type->contains_opaque()) {
       _mesa_glsl_error(& initializer_loc, state,
                        "cannot initialize opaque variable");
    }
+   // #endif // 0
 
    if ((var->data.mode == ir_var_shader_in) && (state->current_function == NULL)) {
       _mesa_glsl_error(& initializer_loc, state,
@@ -3812,11 +3814,13 @@ ast_declarator_list::hir(exec_list *instructions,
        *    "[Opaque types] can only be declared as function
        *     parameters or uniform-qualified variables."
        */
+      // #if 0 // @dario
       if (var_type->contains_opaque() &&
           !this->type->qualifier.flags.q.uniform) {
          _mesa_glsl_error(&loc, state,
                           "opaque variables must be declared uniform");
       }
+      // #endif // 0
 
       /* Process the initializer and add its instructions to a temporary
        * list.  This list will be added to the instruction stream (below) after
