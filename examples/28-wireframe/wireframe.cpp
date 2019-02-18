@@ -307,14 +307,16 @@ public:
 			, 0
 			);
 
+		m_uniforms.init();
 		m_wfProgram   = loadProgram("vs_wf_wireframe", "fs_wf_wireframe");
 		m_meshProgram = loadProgram("vs_wf_mesh",      "fs_wf_mesh");
+		m_wfProgramGS   = loadProgram("vs_wf_wireframe_nv", "fs_wf_wireframe_nv", "gs_wf_wireframe_nv");
+		m_meshProgramGS = loadProgram("vs_wf_mesh_nv",      "fs_wf_mesh_nv", 		"gs_wf_mesh_nv");
 
-		m_uniforms.init();
-
-		m_meshes[0].init("meshes/bunny.bin",      1.0f, 0.0f, bx::kPi, 0.0f, 0.0f, -0.8f,  0.0f);
-		m_meshes[1].init("meshes/hollowcube.bin", 1.0f, 0.0f,   0.0f, 0.0f, 0.0f,  0.0f,  0.0f);
-		m_meshes[2].init("meshes/orb.bin",        1.2f, 0.0f,   0.0f, 0.0f, 0.0f, -0.65f, 0.0f);
+		m_meshes[0].init("meshes/bunny_nobc.bin", 1.0f, 0.0f, bx::kPi, 0.0f, 0.0f, -0.8f,  0.0f);
+		m_meshes[1].init("meshes/bunny.bin",      1.0f, 0.0f, bx::kPi, 0.0f, 0.0f, -0.8f,  0.0f);
+		m_meshes[2].init("meshes/hollowcube.bin", 1.0f, 0.0f,   0.0f, 0.0f, 0.0f,  0.0f,  0.0f);
+		m_meshes[3].init("meshes/orb.bin",        1.2f, 0.0f,   0.0f, 0.0f, 0.0f, -0.65f, 0.0f);
 
 		// Imgui.
 		imguiCreate();
@@ -325,6 +327,7 @@ public:
 
 		m_meshSelection = 1;
 		m_drawMode = DrawMode::WireframeShaded;
+		m_passthrough_shader = false;
 	}
 
 	virtual int shutdown() override
@@ -335,7 +338,10 @@ public:
 		m_meshes[0].destroy();
 		m_meshes[1].destroy();
 		m_meshes[2].destroy();
+		m_meshes[3].destroy();
 
+		bgfx::destroy(m_wfProgramGS);
+		bgfx::destroy(m_meshProgramGS);
 		bgfx::destroy(m_wfProgram);
 		bgfx::destroy(m_meshProgram);
 
@@ -405,15 +411,19 @@ public:
 			ImGui::Text("Mesh:");
 			{
 				bool meshChanged = false;
-				meshChanged |= ImGui::RadioButton("Bunny", &m_meshSelection, 0);
-				meshChanged |= ImGui::RadioButton("Hollowcubes", &m_meshSelection, 1);
-				meshChanged |= ImGui::RadioButton("Orb", &m_meshSelection, 2);
+				meshChanged |= ImGui::RadioButton("Bunny (NoBC)", &m_meshSelection, 0);
+				meshChanged |= ImGui::RadioButton("Bunny", &m_meshSelection, 1);
+				meshChanged |= ImGui::RadioButton("Hollowcubes", &m_meshSelection, 2);
+				meshChanged |= ImGui::RadioButton("Orb", &m_meshSelection, 3);
 
 				if (meshChanged)
 				{
 					m_camera.reset();
 				}
 			}
+
+			ImGui::Separator();
+			ImGui::Checkbox("NV_geometry_shader_passthrough", &m_passthrough_shader);
 
 			ImGui::End();
 			imguiEndFrame();
@@ -472,7 +482,8 @@ public:
 					| BGFX_STATE_MSAA
 					| BGFX_STATE_BLEND_FUNC(BGFX_STATE_BLEND_SRC_ALPHA, BGFX_STATE_BLEND_INV_SRC_ALPHA)
 					;
-				meshSubmit(m_meshes[m_meshSelection].m_mesh, 0, m_wfProgram, m_meshes[m_meshSelection].m_mtx, state);
+				meshSubmit(m_meshes[m_meshSelection].m_mesh, 0, m_passthrough_shader ? m_wfProgramGS : m_wfProgram, 
+						   m_meshes[m_meshSelection].m_mtx, state);
 			}
 			else
 			{
@@ -484,7 +495,8 @@ public:
 					| BGFX_STATE_CULL_CCW
 					| BGFX_STATE_MSAA
 					;
-				meshSubmit(m_meshes[m_meshSelection].m_mesh, 0, m_meshProgram, m_meshes[m_meshSelection].m_mtx, state);
+				meshSubmit(m_meshes[m_meshSelection].m_mesh, 0, m_passthrough_shader ? m_meshProgramGS : m_meshProgram, 
+						   m_meshes[m_meshSelection].m_mtx, state);
 			}
 
 			// Advance to next frame. Rendering thread will be kicked to
@@ -499,8 +511,10 @@ public:
 
 	entry::MouseState m_mouseState;
 
+	bgfx::ProgramHandle m_wfProgramGS;
 	bgfx::ProgramHandle m_wfProgram;
 	bgfx::ProgramHandle m_meshProgram;
+	bgfx::ProgramHandle m_meshProgramGS;
 
 	uint32_t m_width;
 	uint32_t m_height;
@@ -514,9 +528,10 @@ public:
 	Camera m_camera;
 	Mouse m_mouse;
 	Uniforms m_uniforms;
-	MeshMtx m_meshes[3];
+	MeshMtx m_meshes[4];
 	int32_t m_meshSelection;
 	int32_t m_drawMode; // Holds data for 'DrawMode'.
+	bool m_passthrough_shader;
 };
 
 } // namespace

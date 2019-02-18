@@ -2518,6 +2518,14 @@ namespace bgfx
 		, bool _destroyShaders = false
 		);
 
+	// @septag
+	ProgramHandle createProgram(
+		  ShaderHandle _vsh
+		, ShaderHandle _fsh
+		, ShaderHandle _gsh
+		, bool _destroyShaders = false
+		);
+
 	/// Create program with compute shader.
 	///
 	/// @param[in] _csh Compute shader.

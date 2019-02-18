@@ -2712,10 +2712,12 @@ BX_TRACE("%d, %d, %d, %s", _array, _srgb, _mipAutogen, getName(_format) );
 			m_shaders[_handle.idx].destroy();
 		}
 
-		void createProgram(ProgramHandle _handle, ShaderHandle _vsh, ShaderHandle _fsh) override
+		void createProgram(ProgramHandle _handle, ShaderHandle _vsh, ShaderHandle _fsh, ShaderHandle _gsh) override
 		{
 			ShaderGL dummyFragmentShader;
-			m_program[_handle.idx].create(m_shaders[_vsh.idx], isValid(_fsh) ? m_shaders[_fsh.idx] : dummyFragmentShader);
+			ShaderGL dummyGeometryShader;
+			m_program[_handle.idx].create(m_shaders[_vsh.idx], isValid(_fsh) ? m_shaders[_fsh.idx] : dummyFragmentShader,
+				isValid(_gsh) ? m_shaders[_gsh.idx] : dummyGeometryShader);
 		}
 
 		void destroyProgram(ProgramHandle _handle) override
@@ -2902,6 +2904,7 @@ BX_TRACE("%d, %d, %d, %s", _array, _srgb, _mipAutogen, getName(_format) );
 			void* data = BX_ALLOC(g_allocator, size);
 			bx::memSet(data, 0, size);
 			m_uniforms[_handle.idx] = data;
+
 			m_uniformReg.add(_handle, _name);
 		}
 
@@ -4087,7 +4090,7 @@ BX_TRACE("%d, %d, %d, %s", _array, _srgb, _mipAutogen, getName(_format) );
 		return UniformType::End;
 	}
 
-	void ProgramGL::create(const ShaderGL& _vsh, const ShaderGL& _fsh)
+	void ProgramGL::create(const ShaderGL& _vsh, const ShaderGL& _fsh, const ShaderGL& _gsh)
 	{
 		m_id = glCreateProgram();
 		BX_TRACE("Program create: GL%d: GL%d, GL%d", m_id, _vsh.m_id, _fsh.m_id);
@@ -4105,6 +4108,11 @@ BX_TRACE("%d, %d, %d, %s", _array, _srgb, _mipAutogen, getName(_format) );
 				if (0 != _fsh.m_id)
 				{
 					GL_CHECK(glAttachShader(m_id, _fsh.m_id) );
+				}
+
+				if (0 != _gsh.m_id) 
+				{
+					GL_CHECK(glAttachShader(m_id, _gsh.m_id));
 				}
 
 				GL_CHECK(glLinkProgram(m_id) );
@@ -5248,6 +5256,10 @@ BX_TRACE("%d, %d, %d, %s", _array, _srgb, _mipAutogen, getName(_format) );
 		else if (isShaderType(magic, 'V') )
 		{
 			m_type = GL_VERTEX_SHADER;
+		} 
+		else if (isShaderType(magic, 'G'))
+		{
+			m_type = GL_GEOMETRY_SHADER;
 		}
 
 		uint32_t hashIn;
@@ -5304,8 +5316,15 @@ BX_TRACE("%d, %d, %d, %s", _array, _srgb, _mipAutogen, getName(_format) );
 
 		if (0 != m_id)
 		{
-			if (GL_COMPUTE_SHADER != m_type
-			&&  0 != bx::strCmp(code, "#version 430", 12) )
+			int profile_version = 0;
+			if (0 == bx::strCmp(code, "#version", 8)) 
+			{
+				char sver[32];
+				bx::strCopy(sver, sizeof(sver), code.getPtr() + 9);
+				profile_version = atoi(bx::strLTrimSpace(sver).getPtr());
+			}
+			
+			if (GL_COMPUTE_SHADER != m_type && profile_version < 430)
 			{
 				int32_t tempLen = code.getLength() + (4<<10);
 				char* temp = (char*)alloca(tempLen);
@@ -5845,7 +5864,7 @@ BX_TRACE("%d, %d, %d, %s", _array, _srgb, _mipAutogen, getName(_format) );
 
 				BX_TRACE("ANGLE source (len: %d):\n%s\n####", len, source);
 			}
-		}
+		} 
 	}
 
 	void ShaderGL::destroy()

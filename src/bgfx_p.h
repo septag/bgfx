@@ -6,6 +6,7 @@
 #ifndef BGFX_P_H_HEADER_GUARD
 #define BGFX_P_H_HEADER_GUARD
 
+#include <stdio.h>	// TEMP
 #include <bx/platform.h>
 
 #ifndef BGFX_CONFIG_DEBUG
@@ -334,7 +335,7 @@ namespace bgfx
 	inline bool isShaderBin(uint32_t _magic)
 	{
 		return BX_MAKEFOURCC(0, 'S', 'H', 0) == (_magic & BX_MAKEFOURCC(0, 0xff, 0xff, 0) )
-			&& (isShaderType(_magic, 'C') || isShaderType(_magic, 'F') || isShaderType(_magic, 'V') )
+			&& (isShaderType(_magic, 'C') || isShaderType(_magic, 'F') || isShaderType(_magic, 'V') || isShaderType(_magic, 'G'))
 			;
 	}
 
@@ -1712,6 +1713,7 @@ namespace bgfx
 	{
 		ShaderHandle m_vsh;
 		ShaderHandle m_fsh;
+		ShaderHandle m_gsh;
 		int16_t      m_refCount;
 	};
 
@@ -2750,7 +2752,7 @@ namespace bgfx
 		virtual void destroyDynamicVertexBuffer(VertexBufferHandle _handle) = 0;
 		virtual void createShader(ShaderHandle _handle, const Memory* _mem) = 0;
 		virtual void destroyShader(ShaderHandle _handle) = 0;
-		virtual void createProgram(ProgramHandle _handle, ShaderHandle _vsh, ShaderHandle _fsh) = 0;
+		virtual void createProgram(ProgramHandle _handle, ShaderHandle _vsh, ShaderHandle _fsh, ShaderHandle _gsh) = 0;
 		virtual void destroyProgram(ProgramHandle _handle) = 0;
 		virtual void* createTexture(TextureHandle _handle, const Memory* _mem, uint64_t _flags, uint8_t _skip) = 0;
 		virtual void updateTextureBegin(TextureHandle _handle, uint8_t _side, uint8_t _mip) = 0;
@@ -3695,7 +3697,8 @@ namespace bgfx
 
 			if ( (isShaderType(magic, 'C') && isShaderVerLess(magic, 3) )
 			||   (isShaderType(magic, 'F') && isShaderVerLess(magic, 5) )
-			||   (isShaderType(magic, 'V') && isShaderVerLess(magic, 5) ) )
+			||   (isShaderType(magic, 'V') && isShaderVerLess(magic, 5) ) 
+			||	 (isShaderType(magic, 'G') && isShaderVerLess(magic, 5) ))
 			{
 				BX_TRACE("Unsupported shader binary version.");
 				release(_mem);
@@ -3911,7 +3914,7 @@ namespace bgfx
 		{
 			BGFX_MUTEX_SCOPE(m_resourceApiLock);
 
-			if (!isValid(_vsh)
+ 			if (!isValid(_vsh)
 			||  !isValid(_fsh) )
 			{
 				BX_TRACE("Vertex/fragment shader is invalid (vsh %d, fsh %d).", _vsh.idx, _fsh.idx);
@@ -3944,8 +3947,10 @@ namespace bgfx
 					shaderIncRef(_vsh);
 					shaderIncRef(_fsh);
 					ProgramRef& pr = m_programRef[handle.idx];
+					ShaderHandle gsh = BGFX_INVALID_HANDLE;
 					pr.m_vsh = _vsh;
 					pr.m_fsh = _fsh;
+					pr.m_gsh = gsh;
 					pr.m_refCount = 1;
 
 					const uint32_t key = uint32_t(_fsh.idx<<16)|_vsh.idx;
@@ -3953,9 +3958,11 @@ namespace bgfx
 					BX_CHECK(ok, "Program already exists (key: %x, handle: %3d)!", key, handle.idx); BX_UNUSED(ok);
 
 					CommandBuffer& cmdbuf = getCommandBuffer(CommandBuffer::CreateProgram);
+
 					cmdbuf.write(handle);
 					cmdbuf.write(_vsh);
 					cmdbuf.write(_fsh);
+					cmdbuf.write(gsh);
 				}
 			}
 
@@ -3967,6 +3974,93 @@ namespace bgfx
 
 			return handle;
 		}
+
+		// @septag
+		BGFX_API_FUNC(ProgramHandle createProgram(ShaderHandle _vsh, ShaderHandle _fsh, ShaderHandle _gsh, bool _destroyShaders) )
+		{
+			BGFX_MUTEX_SCOPE(m_resourceApiLock);
+
+ 			if (!isValid(_vsh)
+			||  !isValid(_fsh) 
+			||  !isValid(_gsh) )
+			{
+				BX_TRACE("Vertex/fragment/geometry shader is invalid (vsh %d, fsh %d, gs %d).", _vsh.idx, _fsh.idx, _gsh.idx);
+				return BGFX_INVALID_HANDLE;
+			}
+
+			uint64_t hash64 = (uint64_t(_gsh.idx)<<32) | (uint64_t(_fsh.idx)<<16) | uint64_t(_vsh.idx);
+			uint32_t key;
+			// convert 64bit hash to 32
+			{
+				hash64 = (~hash64) + (hash64 << 18);
+				hash64 = hash64 ^ (hash64 >> 31);
+				hash64 = hash64 * 21;
+				hash64 = hash64 ^ (hash64 >> 11);
+				hash64 = hash64 + (hash64 << 6);
+				hash64 = hash64 ^ (hash64 >> 22);		
+				key = (uint32_t)hash64;
+			}
+			ProgramHandle handle = { m_programHashMap.find(key) };
+			if (isValid(handle) )
+			{
+				ProgramRef& pr = m_programRef[handle.idx];
+				++pr.m_refCount;
+				shaderIncRef(pr.m_vsh);
+				shaderIncRef(pr.m_fsh);
+				shaderIncRef(pr.m_gsh);
+			}
+			else
+			{
+				const ShaderRef& vsr = m_shaderRef[_vsh.idx];
+				const ShaderRef& fsr = m_shaderRef[_fsh.idx];
+				const ShaderRef& gsr = m_shaderRef[_gsh.idx];
+				if (vsr.m_hashOut != gsr.m_hashIn)
+				{
+					BX_TRACE("Vertex shader output doesn't match geometry shader input.");
+					return BGFX_INVALID_HANDLE;
+				}
+
+				if (gsr.m_hashOut != fsr.m_hashIn)
+				{
+					BX_TRACE("Geometry shader output doesn't match fragment shader input.");
+					return BGFX_INVALID_HANDLE;
+				}
+
+				handle.idx = m_programHandle.alloc();
+
+				BX_WARN(isValid(handle), "Failed to allocate program handle.");
+				if (isValid(handle) )
+				{
+					shaderIncRef(_vsh);
+					shaderIncRef(_fsh);
+					shaderIncRef(_gsh);
+					ProgramRef& pr = m_programRef[handle.idx];
+					pr.m_vsh = _vsh;
+					pr.m_fsh = _fsh;
+					pr.m_gsh = _gsh;
+					pr.m_refCount = 1;
+
+					bool ok = m_programHashMap.insert(key, handle.idx);
+					BX_CHECK(ok, "Program already exists (key: %x, handle: %3d)!", key, handle.idx); BX_UNUSED(ok);
+
+					CommandBuffer& cmdbuf = getCommandBuffer(CommandBuffer::CreateProgram);
+					cmdbuf.write(handle);
+					cmdbuf.write(_vsh);
+					cmdbuf.write(_fsh);
+					cmdbuf.write(_gsh);
+
+				}
+			}
+
+			if (_destroyShaders)
+			{
+				shaderTakeOwnership(_vsh);
+				shaderTakeOwnership(_fsh);
+				shaderTakeOwnership(_gsh);
+			}
+
+			return handle;
+		}		
 
 		BGFX_API_FUNC(ProgramHandle createProgram(ShaderHandle _vsh, bool _destroyShader) )
 		{
@@ -3995,9 +4089,11 @@ namespace bgfx
 				{
 					shaderIncRef(_vsh);
 					ProgramRef& pr = m_programRef[handle.idx];
-					pr.m_vsh = _vsh;
 					ShaderHandle fsh = BGFX_INVALID_HANDLE;
+					ShaderHandle gsh = BGFX_INVALID_HANDLE;
+					pr.m_vsh = _vsh;
 					pr.m_fsh = fsh;
+					pr.m_gsh = gsh;
 					pr.m_refCount = 1;
 
 					const uint32_t key = uint32_t(_vsh.idx);
@@ -4008,6 +4104,7 @@ namespace bgfx
 					cmdbuf.write(handle);
 					cmdbuf.write(_vsh);
 					cmdbuf.write(fsh);
+					cmdbuf.write(gsh);
 				}
 			}
 
@@ -4031,6 +4128,11 @@ namespace bgfx
 			if (isValid(pr.m_fsh) )
 			{
 				shaderDecRef(pr.m_fsh);
+			}
+
+			if (isValid(pr.m_gsh))
+			{
+				shaderDecRef(pr.m_gsh);
 			}
 
 			int32_t refs = --pr.m_refCount;

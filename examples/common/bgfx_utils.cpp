@@ -134,21 +134,34 @@ bgfx::ShaderHandle loadShader(const char* _name)
 	return loadShader(entry::getFileReader(), _name);
 }
 
-bgfx::ProgramHandle loadProgram(bx::FileReaderI* _reader, const char* _vsName, const char* _fsName)
+bgfx::ProgramHandle loadProgram(bx::FileReaderI* _reader, const char* _vsName, const char* _fsName, const char* _gsName)
 {
 	bgfx::ShaderHandle vsh = loadShader(_reader, _vsName);
 	bgfx::ShaderHandle fsh = BGFX_INVALID_HANDLE;
+	bgfx::ShaderHandle gsh = BGFX_INVALID_HANDLE;
 	if (NULL != _fsName)
 	{
 		fsh = loadShader(_reader, _fsName);
 	}
 
-	return bgfx::createProgram(vsh, fsh, true /* destroy shaders when program is destroyed */);
+	if (NULL != _gsName) 
+	{
+		gsh = loadShader(_reader, _gsName);
+	}
+
+	if (bgfx::isValid(gsh)) 
+	{
+		return bgfx::createProgram(vsh, fsh, gsh, true /* destroy shaders when program is destroyed */);
+	}
+	else 
+	{
+		return bgfx::createProgram(vsh, fsh, true /* destroy shaders when program is destroyed */);
+	}
 }
 
-bgfx::ProgramHandle loadProgram(const char* _vsName, const char* _fsName)
+bgfx::ProgramHandle loadProgram(const char* _vsName, const char* _fsName, const char* _gsName)
 {
-	return loadProgram(entry::getFileReader(), _vsName, _fsName);
+	return loadProgram(entry::getFileReader(), _vsName, _fsName, _gsName);
 }
 
 static void imageReleaseCb(void* _ptr, void* _userData)

@@ -16,6 +16,8 @@
 #	include <objc/message.h>
 #endif // BX_PLATFORM_OSX
 
+#include <stdio.h>	// TEMP
+
 BX_ERROR_RESULT(BGFX_ERROR_TEXTURE_VALIDATION,  BX_MAKEFOURCC('b', 'g', 0, 1) );
 
 namespace bgfx
@@ -1702,6 +1704,10 @@ namespace bgfx
 		{
 			return "Vertex";
 		}
+		else if (isShaderType(_magic, 'G'))
+		{
+			return "Geometry";
+		}
 
 		BX_CHECK(false, "Invalid shader type!");
 
@@ -2877,7 +2883,10 @@ namespace bgfx
 					ShaderHandle fsh;
 					_cmdbuf.read(fsh);
 
-					m_renderCtx->createProgram(handle, vsh, fsh);
+					ShaderHandle gsh;
+					_cmdbuf.read(gsh);
+
+					m_renderCtx->createProgram(handle, vsh, fsh, gsh);
 				}
 				break;
 
@@ -4027,6 +4036,13 @@ namespace bgfx
 
 		return s_ctx->createProgram(_vsh, _fsh, _destroyShaders);
 	}
+
+	ProgramHandle createProgram(ShaderHandle _vsh, ShaderHandle _fsh, ShaderHandle _gsh, bool _destroyShaders)
+	{
+		BX_CHECK(isValid(_fsh), "_fsh cannot be NULL");
+
+		return s_ctx->createProgram(_vsh, _fsh, _gsh, _destroyShaders);
+	}	
 
 	ProgramHandle createProgram(ShaderHandle _csh, bool _destroyShader)
 	{

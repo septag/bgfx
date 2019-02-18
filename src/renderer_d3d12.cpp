@@ -1571,8 +1571,9 @@ namespace bgfx { namespace d3d12
 			m_shaders[_handle.idx].destroy();
 		}
 
-		void createProgram(ProgramHandle _handle, ShaderHandle _vsh, ShaderHandle _fsh) override
+		void createProgram(ProgramHandle _handle, ShaderHandle _vsh, ShaderHandle _fsh, ShaderHande _gsh) override
 		{
+			BX_CHECK(!isValid(_gsh), "Geometry shaders are not implemented for D3D12");
 			m_program[_handle.idx].create(&m_shaders[_vsh.idx], isValid(_fsh) ? &m_shaders[_fsh.idx] : NULL);
 		}
 

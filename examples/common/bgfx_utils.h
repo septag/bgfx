@@ -20,7 +20,7 @@ void unload(void* _ptr);
 bgfx::ShaderHandle loadShader(const char* _name);
 
 ///
-bgfx::ProgramHandle loadProgram(const char* _vsName, const char* _fsName);
+bgfx::ProgramHandle loadProgram(const char* _vsName, const char* _fsName, const char* _gsName = NULL);
 
 ///
 bgfx::TextureHandle loadTexture(const char* _name, uint32_t _flags = BGFX_SAMPLER_NONE, uint8_t _skip = 0, bgfx::TextureInfo* _info = NULL, bimg::Orientation::Enum* _orientation = NULL);

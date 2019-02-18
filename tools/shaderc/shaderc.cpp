@@ -1140,7 +1140,7 @@ namespace bgfx
 				if (0 == bx::strCmp(typen, "flat", 4)
 				||  0 == bx::strCmp(typen, "smooth", 6)
 				||  0 == bx::strCmp(typen, "noperspective", 13)
-				||  0 == bx::strCmp(typen, "centroid", 8) )
+				||  0 == bx::strCmp(typen, "centroid", 8))
 				{
 					if ('f' == _options.shaderType)
 					{
@@ -1316,8 +1316,8 @@ namespace bgfx
 			else if ('g' == _options.shaderType) 
 			{
 				bx::write(_writer, BGFX_CHUNK_MAGIC_GSH);
-				bx::write(_writer, uint32_t(0));
-				bx::write(_writer, uint32_t(0));
+				bx::write(_writer, inputHash);
+				bx::write(_writer, outputHash);
 			}
 			else
 			{
@@ -1556,6 +1556,12 @@ namespace bgfx
 										, var.m_type.c_str()
 										, name
 										);
+							}
+							else if ('g' == _options.shaderType) 
+							{
+								preprocessor.writef("attribute %s %s[];\n"
+										, var.m_type.c_str()
+										, name);	
 							}
 							else
 							{
@@ -1949,8 +1955,8 @@ namespace bgfx
 						else if ('g' == _options.shaderType) 
 						{
 							bx::write(_writer, BGFX_CHUNK_MAGIC_GSH);
-							bx::write(_writer, uint32_t(0));
-							bx::write(_writer, uint32_t(0));
+							bx::write(_writer, inputHash);
+							bx::write(_writer, outputHash);
 						}
 						else
 						{
@@ -2235,6 +2241,12 @@ namespace bgfx
 							else
 							{
 								bx::stringPrintf(code, "#version %d\n", glsl);
+
+								if ('g' == _options.shaderType) 
+								{
+									bx::stringPrintf(code, "#extension GL_EXT_geometry_shader4 : enable\n");
+									bx::stringPrintf(code, "#extension GL_NV_geometry_shader_passthrough : require\n");
+								}
 
 								bx::stringPrintf(code
 									, "#define texture2DLod      textureLod\n"

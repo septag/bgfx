@@ -148,7 +148,7 @@ namespace bgfx { namespace noop
 		{
 		}
 
-		void createProgram(ProgramHandle /*_handle*/, ShaderHandle /*_vsh*/, ShaderHandle /*_fsh*/) override
+		void createProgram(ProgramHandle /*_handle*/, ShaderHandle /*_vsh*/, ShaderHandle /*_fsh*/, ShaderHandle /*gsh*/) override
 		{
 		}
 
